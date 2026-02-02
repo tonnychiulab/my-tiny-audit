@@ -71,6 +71,10 @@ async function startAudit() {
     logToTerminal(`[*] Target: ${urlInput}`);
     logToTerminal(`[*] Starting my-tiny-audit v1.1.0 process...`);
 
+    // 0. Reset & Run Header Analysis
+    document.getElementById('headerAnalysis').style.display = 'none';
+    analyzeHeaders(urlInput);
+
     // 1. Check Soft 404
     logToTerminal(`[*] Checking for Soft 404...`);
     const isSoft404 = await checkSoft404(urlInput);
@@ -235,6 +239,10 @@ async function startWpAudit() {
     logToTerminal(`[*] Target: ${urlInput}`);
     logToTerminal(`[*] Starting WordPress Audit...`);
 
+    // 0. Reset & Run Header Analysis
+    document.getElementById('headerAnalysis').style.display = 'none';
+    analyzeHeaders(urlInput);
+
     // 1. Detect WordPress
     logToTerminal(`[*] Identifying WordPress...`);
     const isWp = await checkIsWordpress(urlInput);
@@ -369,4 +377,79 @@ function toggleButtons(isScanning) {
     }
     btn.disabled = isScanning;
     wpBtn.disabled = isScanning;
+}
+
+// === Header Analysis Functions ===
+
+async function analyzeHeaders(baseUrl) {
+    try {
+        const response = await fetch(PROXY_GATEWAY + encodeURIComponent(baseUrl), {
+            method: 'HEAD',
+            signal: abortController.signal
+        });
+
+        const headers = response.headers;
+        const results = [];
+
+        // 1. Security Headers (Missing = Bad)
+        const securityHeaders = [
+            { key: 'strict-transport-security', label: 'HSTS' },
+            { key: 'content-security-policy', label: 'CSP' },
+            { key: 'x-frame-options', label: 'X-Frame-Options' },
+            { key: 'x-content-type-options', label: 'X-Content-Type' },
+            { key: 'referrer-policy', label: 'Referrer Policy' }
+        ];
+
+        securityHeaders.forEach(item => {
+            const val = headers.get(item.key);
+            if (val) {
+                results.push({ key: item.label, value: 'Present', status: 'good', detail: val });
+            } else {
+                results.push({ key: item.label, value: 'Missing', status: 'bad' });
+            }
+        });
+
+        // 2. Information Leakage (Present = Warn/Bad)
+        const leakageHeaders = [
+            { key: 'server', label: 'Server Software' },
+            { key: 'x-powered-by', label: 'X-Powered-By' },
+            { key: 'x-aspnet-version', label: 'ASP.NET Ver' }
+        ];
+
+        leakageHeaders.forEach(item => {
+            const val = headers.get(item.key);
+            if (val) {
+                results.push({ key: item.label, value: 'Revealed', status: 'warn', detail: val });
+            } else {
+                results.push({ key: item.label, value: 'Hidden', status: 'good' });
+            }
+        });
+
+        displayHeaderResults(results);
+
+    } catch (e) {
+        console.error("Header Analysis Failed", e);
+    }
+}
+
+function displayHeaderResults(results) {
+    const container = document.getElementById('headerAnalysis');
+    const resultsDiv = document.getElementById('headerResults');
+    container.style.display = 'block';
+    resultsDiv.innerHTML = '';
+
+    results.forEach(item => {
+        const row = document.createElement('div');
+        row.className = 'header-item';
+
+        let valClass = `header-val-${item.status}`;
+        let displayVal = item.value;
+        if (item.detail) displayVal += ` (${item.detail})`;
+
+        row.innerHTML = `
+            <span class="header-key">${item.key}</span>
+            <span class="${valClass}">${displayVal}</span>
+        `;
+        resultsDiv.appendChild(row);
+    });
 }
