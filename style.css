@@ -58,6 +58,10 @@ button {
 button:hover { opacity: 0.9; }
 button:disabled { background: var(--text-dim); cursor: not-allowed; }
 
+.btn-danger { background: var(--danger-color); color: #fff; }
+.btn-secondary { background: var(--text-dim); color: #fff; }
+
+
 .dashboard {
     border: 1px solid var(--text-dim);
     background: var(--terminal-bg);
