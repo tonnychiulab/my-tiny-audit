@@ -1,4 +1,4 @@
-// my-tiny-audit v1.1.0 Core
+// my-tiny-audit v1.2.0 Core
 // Author: [Your Name]
 
 const AUDIT_TARGETS = [
@@ -69,7 +69,7 @@ async function startAudit() {
     abortController = new AbortController(); // Initialize new controller
 
     logToTerminal(`[*] Target: ${urlInput}`);
-    logToTerminal(`[*] Starting my-tiny-audit v1.1.0 process...`);
+    logToTerminal(`[*] Starting my-tiny-audit v1.2.0 process...`);
 
     // 0. Reset & Run Header Analysis
     document.getElementById('headerAnalysis').style.display = 'none';
