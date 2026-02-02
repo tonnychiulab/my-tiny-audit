@@ -271,31 +271,54 @@ async function startWpAudit() {
 
 async function checkIsWordpress(baseUrl) {
     try {
-        logToTerminal(`[debug] Checking /wp-login.php...`, 'text-dim');
+        let score = 0;
+        logToTerminal(`[debug] Identifying WordPress signals...`, 'text-dim');
 
-        // Method A: Check for wp-login.php
+        // Method A: Check for wp-login.php (Strong Signal)
         const response = await fetch(PROXY_GATEWAY + encodeURIComponent(baseUrl.replace(/\/$/, "") + '/wp-login.php'), {
             method: 'HEAD',
             signal: abortController.signal
         });
 
-        // Accept 200, 401 (Auth Required), 403 (Forbidden by WAF)
-        // If it exists but is blocked, it's still likely WP.
         if (response.status === 200 || response.status === 401 || response.status === 403) {
-            logToTerminal(`[debug] /wp-login.php returned ${response.status} (Confirmed)`, 'text-dim');
-            return true;
+            logToTerminal(`[debug] /wp-login.php detected (${response.status})`, 'text-dim');
+            score += 2;
         }
 
-        logToTerminal(`[debug] Checking homepage source...`, 'text-dim');
-
-        // Method B: Check Homepage source for "wp-content"
+        // Method B: Check Homepage source (content / meta / links)
         const homeResponse = await fetch(PROXY_GATEWAY + encodeURIComponent(baseUrl), {
             method: 'GET',
             signal: abortController.signal
         });
         const text = await homeResponse.text();
+
         if (text.includes('wp-content') || text.includes('wp-includes')) {
-            logToTerminal(`[debug] Found 'wp-content' in source (Confirmed)`, 'text-dim');
+            logToTerminal(`[debug] Source contains 'wp-content'`, 'text-dim');
+            score += 1;
+        }
+
+        if (text.includes('/wp-json/')) {
+            logToTerminal(`[debug] Source contains 'wp-json' API`, 'text-dim');
+            score += 2;
+        }
+
+        if (text.match(/<meta name="generator" content="WordPress/i)) {
+            logToTerminal(`[debug] Found WordPress Meta Generator`, 'text-dim');
+            score += 2;
+        }
+
+        // Method C: Check API Endpoint directly (Strong Signal)
+        const apiResponse = await fetch(PROXY_GATEWAY + encodeURIComponent(baseUrl.replace(/\/$/, "") + '/wp-json/'), {
+            method: 'HEAD',
+            signal: abortController.signal
+        });
+        if (apiResponse.status === 200) {
+            logToTerminal(`[debug] /wp-json/ API endpoint accessible`, 'text-dim');
+            score += 2;
+        }
+
+        if (score >= 2) {
+            logToTerminal(`[+] WordPress Confirmed (Score: ${score})`, 'text-success');
             return true;
         }
 
