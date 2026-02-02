@@ -35,6 +35,15 @@ const AUDIT_TARGETS = [
     { path: '/package.json', desc: 'Node.js Package Info', signature: /"dependencies":/ }
 ];
 
+const WP_TARGETS = [
+    { path: '/wp-config.php.bak', desc: 'WP Config Backup', signature: /define\(/ },
+    { path: '/wp-content/debug.log', desc: 'WP Debug Log', signature: /PHP (Notice|Warning|Fatal|Parse)/ },
+    { path: '/wp-content/uploads/dump.sql', desc: 'Uploads SQL Dump', signature: /(INSERT INTO|CREATE TABLE)/i },
+    { path: '/wp-content/ai1wm-backups/', desc: 'All-in-One WP Migration', signature: /Index of/i },
+    { path: '/wp-content/updraft/', desc: 'UpdraftPlus Backup', signature: /Index of/i },
+    { path: '/wp-login.php', desc: 'WP Login Page', signature: /login/i }
+];
+
 // CORS Proxy
 const PROXY_GATEWAY = 'https://corsproxy.io/?';
 
@@ -53,11 +62,8 @@ async function startAudit() {
     }
 
     // Reset UI
-    btn.disabled = true;
-    btn.style.display = 'none';
-
-    document.getElementById('cancelBtn').style.display = 'inline-block';
-    document.getElementById('copyBtn').style.display = 'none';
+    // Reset UI
+    toggleButtons(true);
 
     terminal.innerHTML = '';
     abortController = new AbortController(); // Initialize new controller
@@ -180,19 +186,8 @@ async function verifyContent(url, signatureRegex) {
 }
 
 function resetUI() {
-    const btn = document.getElementById('auditBtn');
-    const cancelBtn = document.getElementById('cancelBtn');
-    const copyBtn = document.getElementById('copyBtn');
-    const statusText = document.getElementById('statusText');
-
-    btn.disabled = false;
-    btn.innerText = "開始審計 (Audit)";
-    btn.style.display = 'inline-block';
-
-    cancelBtn.style.display = 'none';
-    copyBtn.style.display = 'inline-block'; // Show Copy button after scan
-
-    statusText.innerText = "System Idle";
+    toggleButtons(false);
+    document.getElementById('statusText').innerText = "System Idle";
     abortController = null;
 }
 
@@ -219,4 +214,159 @@ function copyReport() {
     }).catch(err => {
         console.error('Failed to copy text: ', err);
     });
+}
+
+// === WordPress Specific Functions ===
+
+async function startWpAudit() {
+    const urlInput = document.getElementById('targetUrl').value.trim();
+
+    if (!urlInput.startsWith('http')) {
+        logToTerminal(`[Error] Invalid URL format. Please use http:// or https://`, 'text-danger');
+        return;
+    }
+
+    // Reset UI for WP Scan
+    toggleButtons(true);
+    const terminal = document.getElementById('terminalOutput');
+    terminal.innerHTML = '';
+    abortController = new AbortController();
+
+    logToTerminal(`[*] Target: ${urlInput}`);
+    logToTerminal(`[*] Starting WordPress Audit...`);
+
+    // 1. Detect WordPress
+    logToTerminal(`[*] Identifying WordPress...`);
+    const isWp = await checkIsWordpress(urlInput);
+
+    if (isWp) {
+        logToTerminal(`[+] WordPress DETECTED!`, 'text-success');
+
+        // 2. Detect Version
+        const version = await getWpVersion(urlInput);
+        if (version) {
+            logToTerminal(`[+] Version detected: ${version}`, 'text-success');
+        } else {
+            logToTerminal(`[?] Version could not be identified.`, 'text-warning');
+        }
+
+        // 3. Run WP Specific Targets
+        await runAuditLoop(urlInput, WP_TARGETS);
+
+    } else {
+        logToTerminal(`[-] WordPress NOT detected. Aborting WP specific scan.`, 'text-warning');
+        logToTerminal(`[*] Hint: Try the regular "Audit" for a broader check.`, 'text-dim');
+    }
+
+    resetUI();
+}
+
+async function checkIsWordpress(baseUrl) {
+    try {
+        // Method A: Check for wp-login.php
+        const response = await fetch(PROXY_GATEWAY + encodeURIComponent(baseUrl.replace(/\/$/, "") + '/wp-login.php'), {
+            method: 'HEAD',
+            signal: abortController.signal
+        });
+        if (response.status === 200) return true;
+
+        // Method B: Check Homepage source for "wp-content"
+        const homeResponse = await fetch(PROXY_GATEWAY + encodeURIComponent(baseUrl), {
+            method: 'GET',
+            signal: abortController.signal
+        });
+        const text = await homeResponse.text();
+        if (text.includes('wp-content') || text.includes('wp-includes')) return true;
+
+        return false;
+    } catch (e) {
+        return false;
+    }
+}
+
+async function getWpVersion(baseUrl) {
+    try {
+        const response = await fetch(PROXY_GATEWAY + encodeURIComponent(baseUrl), {
+            method: 'GET',
+            signal: abortController.signal
+        });
+        const text = await response.text();
+        const match = text.match(/<meta name="generator" content="WordPress ([0-9.]+)"/i);
+        return match ? match[1] : null;
+    } catch (e) {
+        return null;
+    }
+}
+
+// Reusable Audit Loop
+async function runAuditLoop(baseUrl, targets) {
+    const statusText = document.getElementById('statusText');
+    const progressText = document.getElementById('progressText');
+
+    let risksFound = 0;
+
+    // Check Soft 404 (Re-use existing logic if possible, or simple check here)
+    const isSoft404 = await checkSoft404(baseUrl);
+
+    for (let i = 0; i < targets.length; i++) {
+        if (abortController.signal.aborted) return; // Exit if cancelled
+
+        const item = targets[i];
+        const targetUrl = baseUrl.replace(/\/$/, "") + item.path;
+
+        const percent = Math.round(((i + 1) / targets.length) * 100);
+        progressText.innerText = `${percent}%`;
+        statusText.innerText = `Checking: ${item.path}`;
+
+        try {
+            const response = await fetch(PROXY_GATEWAY + encodeURIComponent(targetUrl), {
+                method: 'HEAD',
+                signal: abortController.signal
+            });
+
+            if (response.status === 200) {
+                if (isSoft404 && !item.signature) {
+                    logToTerminal(`[?] IGNORED: ${item.path} (Soft 404)`, 'text-dim');
+                } else if (item.signature) {
+                    statusText.innerText = `Verifying: ${item.path}`;
+                    const isVerified = await verifyContent(targetUrl, item.signature);
+                    if (isVerified) {
+                        risksFound++;
+                        logToTerminal(`[!] CONFIRMED: ${item.path} - ${item.desc}`, 'text-danger');
+                    } else {
+                        logToTerminal(`[-] FALSE POSITIVE: ${item.path}`, 'text-dim');
+                    }
+                } else {
+                    risksFound++;
+                    logToTerminal(`[!] FOUND: ${item.path} - ${item.desc}`, 'text-danger');
+                }
+            }
+        } catch (e) { }
+
+        await new Promise(r => setTimeout(r, 150));
+    }
+
+    logToTerminal(`------------------------------------------------`);
+    logToTerminal(`[!] Scan Complete. Found ${risksFound} issues.`);
+}
+
+function toggleButtons(isScanning) {
+    const btn = document.getElementById('auditBtn');
+    const wpBtn = document.getElementById('wpAuditBtn');
+    const cancelBtn = document.getElementById('cancelBtn');
+    const copyBtn = document.getElementById('copyBtn');
+
+    if (isScanning) {
+        btn.style.display = 'none';
+        wpBtn.style.display = 'none';
+        cancelBtn.style.display = 'inline-block';
+        copyBtn.style.display = 'none';
+    } else {
+        btn.style.display = 'inline-block';
+        wpBtn.style.display = 'inline-block';
+        cancelBtn.style.display = 'none';
+        copyBtn.style.display = 'inline-block';
+    }
+    btn.disabled = isScanning;
+    wpBtn.disabled = isScanning;
 }

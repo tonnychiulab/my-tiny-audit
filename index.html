@@ -1,11 +1,13 @@
 <!DOCTYPE html>
 <html lang="zh-TW">
+
 <head>
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
     <title>My Tiny Audit | Client-side Security Check</title>
     <link rel="stylesheet" href="style.css">
 </head>
+
 <body>
     <div class="container">
         <header>
@@ -16,6 +18,8 @@
         <div class="input-group">
             <input type="text" id="targetUrl" placeholder="輸入目標網址 (例如 https://example.com)" />
             <button id="auditBtn" onclick="startAudit()">開始檢查 (Audit)</button>
+            <button id="wpAuditBtn" onclick="startWpAudit()" style="background-color: #21759b; color: white;">WP
+                Scan</button>
             <button id="cancelBtn" onclick="cancelAudit()" class="btn-danger" style="display:none;">停止 (Stop)</button>
             <button id="copyBtn" onclick="copyReport()" class="btn-secondary" style="display:none;">複製報告 (Copy)</button>
         </div>
@@ -30,7 +34,7 @@
                 <div class="log-line text-dim">// Waiting for target input...</div>
             </div>
         </div>
-        
+
         <footer>
             <small>Powered by Open Source | Client-side execution only</small>
         </footer>
@@ -38,4 +42,5 @@
 
     <script src="audit.js"></script>
 </body>
+
 </html>
