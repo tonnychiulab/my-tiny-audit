@@ -1,0 +1,39 @@
+<!DOCTYPE html>
+<html lang="zh-TW">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>my-tiny-audit | Client-side Security Check</title>
+    <link rel="stylesheet" href="style.css">
+</head>
+<body>
+    <div class="container">
+        <header>
+            <h1>my-tiny-audit <span class="badge">v1.0.0</span></h1>
+            <p>純前端網站敏感檔案檢測工具</p>
+        </header>
+
+        <div class="input-group">
+            <input type="text" id="targetUrl" placeholder="輸入目標網址 (例如 https://example.com)" />
+            <button id="auditBtn" onclick="startAudit()">開始審計 (Audit)</button>
+        </div>
+
+        <div class="dashboard">
+            <div class="status-bar">
+                <span id="statusText">System Idle</span>
+                <span id="progressText">0%</span>
+            </div>
+            <div class="terminal" id="terminalOutput">
+                <div class="log-line text-dim">// my-tiny-audit initialized.</div>
+                <div class="log-line text-dim">// Waiting for target input...</div>
+            </div>
+        </div>
+        
+        <footer>
+            <small>Powered by Open Source | Client-side execution only</small>
+        </footer>
+    </div>
+
+    <script src="audit.js"></script>
+</body>
+</html>

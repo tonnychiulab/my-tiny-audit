@@ -1,0 +1,91 @@
+:root {
+    --bg-color: #0d1117;
+    --terminal-bg: #000000;
+    --primary-color: #00ff41; /* 駭客綠 */
+    --danger-color: #ff0055;
+    --warning-color: #ffbe0a;
+    --text-dim: #586069;
+    --font-mono: 'Courier New', Courier, monospace;
+}
+
+body {
+    background-color: var(--bg-color);
+    color: var(--primary-color);
+    font-family: var(--font-mono);
+    margin: 0;
+    padding: 20px;
+    display: flex;
+    justify-content: center;
+}
+
+.container {
+    width: 100%;
+    max-width: 800px;
+}
+
+h1 { margin-bottom: 5px; }
+.badge { background: var(--primary-color); color: #000; padding: 2px 6px; font-size: 0.5em; border-radius: 4px; vertical-align: middle; }
+p { color: var(--text-dim); margin-top: 0; }
+
+.input-group {
+    display: flex;
+    gap: 10px;
+    margin-bottom: 20px;
+}
+
+input {
+    flex: 1;
+    background: #161b22;
+    border: 1px solid var(--text-dim);
+    color: #fff;
+    padding: 12px;
+    font-family: var(--font-mono);
+    outline: none;
+}
+
+input:focus { border-color: var(--primary-color); }
+
+button {
+    background: var(--primary-color);
+    color: #000;
+    border: none;
+    padding: 12px 24px;
+    cursor: pointer;
+    font-weight: bold;
+    font-family: var(--font-mono);
+}
+
+button:hover { opacity: 0.9; }
+button:disabled { background: var(--text-dim); cursor: not-allowed; }
+
+.dashboard {
+    border: 1px solid var(--text-dim);
+    background: var(--terminal-bg);
+}
+
+.status-bar {
+    padding: 8px;
+    background: #161b22;
+    border-bottom: 1px solid var(--text-dim);
+    display: flex;
+    justify-content: space-between;
+    font-size: 0.9em;
+}
+
+.terminal {
+    height: 400px;
+    overflow-y: auto;
+    padding: 10px;
+    font-size: 0.9em;
+}
+
+.log-line { margin-bottom: 4px; line-height: 1.4; }
+.text-dim { color: var(--text-dim); }
+.text-danger { color: var(--danger-color); font-weight: bold; }
+.text-success { color: var(--primary-color); }
+.text-warning { color: var(--warning-color); }
+
+/* 捲軸樣式 */
+::-webkit-scrollbar { width: 8px; }
+::-webkit-scrollbar-track { background: #000; }
+::-webkit-scrollbar-thumb { background: #333; }
