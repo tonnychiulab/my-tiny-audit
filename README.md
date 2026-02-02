@@ -1,4 +1,4 @@
-# my-tiny-audit 🔍
+# My Tiny Audit 🔍
 
 > A pure HTML/JS Client-side Security Auditor.
 > 透過純前端技術實現的網站敏感檔案輕量檢測工具。
