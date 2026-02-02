@@ -271,12 +271,22 @@ async function startWpAudit() {
 
 async function checkIsWordpress(baseUrl) {
     try {
+        logToTerminal(`[debug] Checking /wp-login.php...`, 'text-dim');
+
         // Method A: Check for wp-login.php
         const response = await fetch(PROXY_GATEWAY + encodeURIComponent(baseUrl.replace(/\/$/, "") + '/wp-login.php'), {
             method: 'HEAD',
             signal: abortController.signal
         });
-        if (response.status === 200) return true;
+
+        // Accept 200, 401 (Auth Required), 403 (Forbidden by WAF)
+        // If it exists but is blocked, it's still likely WP.
+        if (response.status === 200 || response.status === 401 || response.status === 403) {
+            logToTerminal(`[debug] /wp-login.php returned ${response.status} (Confirmed)`, 'text-dim');
+            return true;
+        }
+
+        logToTerminal(`[debug] Checking homepage source...`, 'text-dim');
 
         // Method B: Check Homepage source for "wp-content"
         const homeResponse = await fetch(PROXY_GATEWAY + encodeURIComponent(baseUrl), {
@@ -284,10 +294,15 @@ async function checkIsWordpress(baseUrl) {
             signal: abortController.signal
         });
         const text = await homeResponse.text();
-        if (text.includes('wp-content') || text.includes('wp-includes')) return true;
+        if (text.includes('wp-content') || text.includes('wp-includes')) {
+            logToTerminal(`[debug] Found 'wp-content' in source (Confirmed)`, 'text-dim');
+            return true;
+        }
 
         return false;
     } catch (e) {
+        logToTerminal(`[Error] Detection failed: ${e.message}`, 'text-danger');
+        console.error(e);
         return false;
     }
 }
